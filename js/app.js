@@ -2,7 +2,7 @@
 // Auto-detect: local vs Render production
 const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? 'http://127.0.0.1:5000'
-    : 'https://sign-language-converter-backend.onrender.com';
+    : 'https://sign-b-1.onrender.com';
 
 // ========== AUTH LOGIC ==========
 document.addEventListener('DOMContentLoaded', () => {
