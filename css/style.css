@@ -809,6 +809,17 @@ body {
 .history-item .h-time {
   font-size: 0.72rem;
   color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.history-item .h-lang {
+  font-size: 0.72rem;
+  color: var(--accent-secondary);
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.8;
 }
 
 .empty-state {

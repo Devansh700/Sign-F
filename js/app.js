@@ -71,8 +71,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (data.success) {
                 sessionStorage.setItem('username', data.username);
-                if(typeof showToast === 'function') showToast('Login successful!', 'success');
+                if(typeof showToast === 'function') showToast('Login successful! Loading your history...', 'success');
                 authOverlay.classList.add('hidden');
+                // Load MongoDB history after login
+                loadHistory();
             } else {
                 errorEl.textContent = data.error || 'Invalid credentials';
             }
@@ -500,8 +502,8 @@ async function speakText(text, lang) {
     }
 }
 
-// ========== HISTORY ==========
-function addToHistory(text) {
+// ========== HISTORY (MongoDB-backed) ==========
+async function addToHistory(text) {
     const entry = {
         text,
         translated: state.translatedText,
@@ -510,6 +512,47 @@ function addToHistory(text) {
     };
     state.history.unshift(entry);
     renderHistory();
+
+    // Save to MongoDB
+    const username = sessionStorage.getItem('username');
+    if (username) {
+        try {
+            await fetch(`${API_BASE_URL}/api/history/save`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username,
+                    text,
+                    translated: state.translatedText,
+                    lang: langLabels[state.targetLang]
+                })
+            });
+        } catch (err) {
+            console.warn('Could not save history to MongoDB:', err);
+        }
+    }
+}
+
+async function loadHistory() {
+    const username = sessionStorage.getItem('username');
+    if (!username) return;
+
+    try {
+        const resp = await fetch(`${API_BASE_URL}/api/history/get?username=${encodeURIComponent(username)}`);
+        const data = await resp.json();
+        if (data.success && data.history.length > 0) {
+            state.history = data.history.map(h => ({
+                text: h.text,
+                translated: h.translated || '',
+                lang: h.lang || '',
+                time: h.time ? new Date(h.time + 'Z').toLocaleTimeString() : ''
+            }));
+            renderHistory();
+            showToast(`Loaded ${data.history.length} history entries from cloud ☁️`, 'info');
+        }
+    } catch (err) {
+        console.warn('Could not load history from MongoDB:', err);
+    }
 }
 
 function renderHistory() {
@@ -523,6 +566,7 @@ function renderHistory() {
             <div>
                 <div class="h-text">${h.text}</div>
                 <div class="h-translated">${h.translated || ''}</div>
+                ${h.lang ? `<div class="h-lang"><i class="fa-solid fa-language"></i> ${h.lang}</div>` : ''}
             </div>
             <div class="h-time">${h.time}</div>
         </div>
@@ -615,10 +659,25 @@ $('sentence-mode-toggle').addEventListener('change', e => {
     showToast(state.sentenceMode ? 'Sentence Mode ON' : 'Letter Mode ON', 'info');
 });
 
-$('btn-clear-history')?.addEventListener('click', () => {
+$('btn-clear-history')?.addEventListener('click', async () => {
     state.history = [];
     renderHistory();
     showToast('History cleared', 'info');
+
+    // Clear from MongoDB
+    const username = sessionStorage.getItem('username');
+    if (username) {
+        try {
+            await fetch(`${API_BASE_URL}/api/history/clear`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            });
+            showToast('Cloud history cleared ☁️', 'success');
+        } catch (err) {
+            console.warn('Could not clear MongoDB history:', err);
+        }
+    }
 });
 
 // ========== MANUAL INPUT (for demo without model) ==========
@@ -657,3 +716,6 @@ document.addEventListener('keydown', e => {
 
 // ========== INIT ==========
 console.log('Sign Language Converter - Frontend Loaded and targeting Backend on ' + API_BASE_URL);
+
+// Load history from MongoDB if user is already logged in
+loadHistory();
