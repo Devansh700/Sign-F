@@ -370,11 +370,11 @@ let lastAcceptedLabel = '';
 let lastAcceptTime = Date.now();
 let consecutiveCount = 0;
 let lastPred = '';
-const CONSEC_REQUIRED = 2; // Reduced for faster response
+const CONSEC_REQUIRED = 2; // Requires 2 same predictions in a row
 
 function handlePrediction(label, confidence) {
     state.confidence = Math.round(confidence * 100);
-    state.handDetected = confidence > 0.3;
+    state.handDetected = confidence > 0.25;  // Lower threshold for hand detection
     updateConfidenceUI();
 
     // Consecutive check
@@ -385,9 +385,9 @@ function handlePrediction(label, confidence) {
         lastPred = label;
     }
 
-    if (consecutiveCount >= CONSEC_REQUIRED && confidence > 0.6) {
+    if (consecutiveCount >= CONSEC_REQUIRED && confidence > 0.45) {  // Lowered from 0.6 to 0.45
         const now = Date.now();
-        if ((now - lastAcceptTime) > 1200) {
+        if ((now - lastAcceptTime) > 1000) {  // Reduced cooldown from 1200ms to 1000ms
             // Accept the letter
             if (state.sentenceMode) {
                 state.currentWord += label;
